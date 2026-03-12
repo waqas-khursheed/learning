@@ -1,0 +1,214 @@
+Step 1: Define Goal & Scope
+
+Decide purpose: text → image generation
+
+Decide output size: 64x64 RGB images (small toy version)
+
+Decide dataset size: 50–500 text-image pairs (toy)
+
+Checklist:
+
+ Model purpose = text → image
+
+ Output resolution = 64x64
+
+ Dataset size = small (toy)
+
+Step 2: Dataset Collection & Preprocessing
+
+Collect images + captions / text prompts
+
+Resize images → uniform size (64x64)
+
+Normalize images → pixel values 0–1
+
+Encode text prompts → embeddings (toy: simple character / word embedding or small pretrained text encoder)
+
+Checklist:
+
+ Collect image + text pairs
+
+ Resize images
+
+ Normalize images
+
+ Encode text prompts → vector embeddings
+
+ Save processed dataset → .pt tensors / numpy arrays
+
+Step 3: Model Architecture Design
+
+Core = Tiny UNet / Encoder-Decoder
+
+Input = noisy image + text embedding
+
+Output = denoised image
+
+Checklist:
+
+ Define Tiny UNet layers (Conv2D + ReLU)
+
+ Merge text embedding with image latent (concatenate or cross-attention)
+
+ Output layer → RGB image
+
+Step 4: Forward Diffusion Process
+
+Add Gaussian noise to images gradually
+
+Toy version: 10–50 diffusion steps
+
+Each step → image + text embedding as input → predict denoised image
+
+Checklist:
+
+ Function to add noise to images
+
+ Scheduler for noise levels
+
+ Ensure input-output shapes match
+
+Step 5: Loss Function & Optimizer
+
+Loss = MSE between predicted denoised image and original image
+
+Optimizer = Adam / AdamW
+
+Learning rate & batch size → adjustable
+
+Checklist:
+
+ Define MSELoss
+
+ Set optimizer (Adam)
+
+ Define batch size (1–8 for toy)
+
+Step 6: Training Loop
+
+For each epoch:
+
+Select batch of images + text embeddings
+
+Add noise → forward diffusion
+
+Pass through UNet (with text conditioning)
+
+Compute loss → backprop → optimizer step
+
+Save model checkpoint
+
+Checklist:
+
+ Loop over epochs
+
+ Forward diffusion + text conditioning
+
+ Compute loss + backprop
+
+ Save weights (.pth) periodically
+
+Step 7: Save & Load Model
+
+Save trained model weights → .pth or .safetensors
+
+Load model for inference → same architecture + weights
+
+Checklist:
+
+ torch.save() weights
+
+ torch.load() weights
+
+ Ensure architecture matches
+
+Step 8: Inference / Image Generation
+
+Input = random noise + text embedding
+
+UNet → iterative denoising → generate image
+
+Save image to output folder
+
+Checklist:
+
+ Load model + weights
+
+ Convert text prompt → embedding
+
+ Generate random noise image
+
+ Apply denoising iterations
+
+ Save output image
+
+Step 9: Optional Enhancements (Toy)
+
+Pretrained text encoder → better text understanding
+
+Latent diffusion → memory efficient
+
+Attention mechanism → prompt adherence
+
+Wrap in API → FastAPI / Flask → multiple projects access
+
+Checklist (Optional):
+
+ Pretrained text embeddings
+
+ Attention cross between text + image
+
+ API wrapper
+
+
+
+ | Resource  | Requirement                                  |
+| --------- | -------------------------------------------- |
+| Dataset   | 50–500 text-image pairs (toy)                |
+| GPU       | Optional (CPU sufficient for toy)            |
+| Storage   | ~100–200MB                                   |
+| Libraries | PyTorch, torchvision, numpy, PIL             |
+| Optional  | Hugging Face Transformers (for text encoder) |
+
+Conceptual Workflow
+
+Text prompt + Image
+        │
+  Preprocessing
+ (resize, normalize)
+        │
+ Forward Diffusion (add noise)
+        │
+Tiny UNet + Text Conditioning
+        │
+   Compute Loss (MSE)
+        │
+ Backprop + Optimizer
+        │
+  Save Model Weights
+        │
+      Inference
+        │
+Random Noise + Text → UNet → Generated Image
+
+Summary of Steps for Custom Learning
+
+Decide text-to-image goal & output size
+
+Collect and preprocess text + image pairs
+
+Define Tiny UNet + text conditioning
+
+Implement forward diffusion (noise addition)
+
+Define loss function & optimizer
+
+Implement training loop
+
+Save / load model weights
+
+Implement inference → image generation
+
+Optional: improve with text encoder, latent space, attention
+
+Track resource requirementsf

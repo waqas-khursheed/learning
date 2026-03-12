@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flex Layout Example</title>
+
+  <style>
+    /* ===============================
+       MAIN FLEX CONTAINER
+    =============================== */
+    .flex-container {
+      display: flex;
+      justify-content: flex-start;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      background-color: #bbdefb;
+      padding: 15px;
+      gap: 10px;
+      min-height: 100vh;
+    }
+
+    /* ===============================
+       CHILD CONTAINER
+    =============================== */
+    .child-can {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #ffecb3;
+      border: 3px solid #ffcc80;
+      border-radius: 5px;
+      padding: 10px;
+      width: 600px;
+      height: 400px;
+      box-sizing: border-box;
+    }
+
+    /* ===============================
+       LIST WRAPPER INSIDE CHILD
+    =============================== */
+    .child-can1 {
+      flex: 1;
+      overflow-y: auto;
+      border: 2px dashed #f57c00;
+      border-radius: 5px;
+      padding: 5px;
+    }
+
+    .list-items {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .list-items li {
+      margin-bottom: 6px;
+    }
+
+    .item-box {
+      background: #fff8e1;
+      border: 2px solid #ffb300;
+      border-radius: 5px;
+      padding: 8px;
+    }
+
+    /* ===============================
+       SCROLLABLE LIST SECTION
+    =============================== */
+    .list-items2 {
+      background: #ffecb3;
+      border: 3px solid #ffcc80;
+      border-radius: 5px;
+      width: 400px;
+      height: 400px;
+      overflow-y: scroll;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    .list-items2 ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .list-items2 li {
+      margin-bottom: 10px;
+      word-break: break-all;
+    }
+
+    /* ===============================
+       OTHER FLEX ITEMS
+    =============================== */
+    .item3 {
+      background: #ffe0b2;
+      border: 2px solid #ffb74d;
+      border-radius: 5px;
+      padding: 10px;
+      width: 200px;
+      height: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="flex-container">
+    <!-- LEFT SIDE PANEL -->
+    <div class="child-can">
+      <div class="item-box">Item A</div>
+      <div class="item-box">Item B</div>
+      <div class="item-box">Item C</div>
+
+      <div class="child-can1">
+        <ul class="list-items">
+          <li><div class="item-box">Sub-item 1</div></li>
+          <li><div class="item-box">Sub-item 2</div></li>
+          <li><div class="item-box">Sub-item 3</div></li>
+          <li><div class="item-box">Sub-item 4</div></li>
+          <li><div class="item-box">Sub-item 5</div></li>
+          <li><div class="item-box">Sub-item 6</div></li>
+          <li><div class="item-box">Sub-item 7</div></li>
+          <li><div class="item-box">Sub-item 8</div></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- SCROLLABLE LINKS PANEL -->
+    <div class="list-items2">
+      <ul>
+        <li>file:///home/brandigotech5/python_doc/DSA/css/flex-layout.html</li>
+        <li>file:///home/brandigotech5/python_doc/DSA/css/flex-layout.htmlfile:///home/brandigotech5/python_doc/DSA/css/flex-layout.html</li>
+        <li>file:///home/brandigotech5/python_doc/DSA/css/flex-layout.htmlfile:///home/brandigotech5/python_doc/DSA/css/flex-layout.html</li>
+        <li>file:///home/brandigotech5/python_doc/DSA/css/flex-layout.htmlfile:///home/brandigotech5/python_doc/DSA/css/flex-layout.html</li>
+        <li>file:///home/brandigotech5/python_doc/DSA/css/flex-layout.htmlfile:///home/brandigotech5/python_doc/DSA/css/flex-layout.html</li>
+        <li>file:///home/brandigotech5/python_doc/DSA/css/flex-layout.htmlfile:///home/brandigotech5/python_doc/DSA/css/flex-layout.html</li>
+      </ul>
+    </div>
+
+    <!-- ADDITIONAL FLEX ITEMS -->
+    <div class="item3">Item 3A</div>
+    <div class="item3">Item 3B</div>
+    <div class="item3">Item 3C</div>
+    <div class="item3">Item 3D</div>
+  </div>
+</body>
+</html>
