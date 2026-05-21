@@ -26,7 +26,7 @@
 // Migrate Database (Run Migrations)
 
 // npx sequelize-cli db:migrate
-
+//  npx sequelize-cli db:migrate --debug
 // Rollback Last Migration
 
 // npx sequelize-cli db:migrate:undo
