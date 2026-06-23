@@ -233,6 +233,132 @@ class Penguin extends Bird {
 // balki use karne walay code ke liye same tarah se kaam karni chahiye.
 
 
+// ❌ LSP Violation
+
+// Maan lo tumhari application mein payment system hai:
+
+class PaymentMethod
+{
+    public function pay(float $amount)
+    {
+        return "Payment Successful";
+    }
+}
+
+class CashOnDelivery extends PaymentMethod
+{
+    public function pay(float $amount)
+    {
+        throw new Exception("Cash on Delivery online pay nahi kar sakta");
+    }
+}
+
+// Use:
+
+function processPayment(PaymentMethod $payment)
+{
+    echo $payment->pay(1000);
+}
+
+processPayment(new CashOnDelivery());
+// Problem
+
+// processPayment() expect karta hai ke har PaymentMethod pay karega.
+
+// Lekin CashOnDelivery exception throw kar raha hai.
+
+// Yani child class parent ke contract ko break kar rahi hai.
+
+// LSP Violation ❌
+
+// ✅ Correct Design
+interface OrderMethod
+{
+    public function placeOrder();
+}
+
+class CreditCardPayment implements OrderMethod
+{
+    public function placeOrder()
+    {
+        return "Order placed and paid online";
+    }
+}
+
+class CashOnDelivery implements OrderMethod
+{
+    public function placeOrder()
+    {
+        return "Order placed with cash on delivery";
+    }
+}
+
+// Use:
+
+function checkout(OrderMethod $method)
+{
+    echo $method->placeOrder();
+}
+
+// Ab dono classes safely use ho sakti hain.
+
+// LSP Followed ✅
+
+// Laravel Real Example
+
+// Maan lo tum repository pattern use kar rahe ho:
+
+interface UserRepositoryInterface
+{
+    public function find(int $id);
+}
+// Child 1
+class DatabaseUserRepository implements UserRepositoryInterface
+{
+    public function find(int $id)
+    {
+        return User::find($id);
+    }
+}
+// Child 2
+class CacheUserRepository implements UserRepositoryInterface
+{
+    public function find(int $id)
+    {
+        return Cache::get("user_$id");
+    }
+}
+
+// Service:
+
+class UserService
+{
+    public function __construct(
+        private UserRepositoryInterface $repository
+    ) {}
+
+    public function getUser($id)
+    {
+        return $this->repository->find($id);
+    }
+}
+
+// Ab chahe DatabaseUserRepository inject karo ya CacheUserRepository, service ka code nahi tootega.
+
+// Yeh real Laravel LSP example hai. Child classes parent contract (UserRepositoryInterface) ko follow kar rahi hain aur parent ki jagah replace ho sakti hain.
+
+// Yaad Rakhne Ki Trick
+
+// LSP = Replaceability
+
+Agar:
+
+Parent $obj = new Child();
+
+// aur system normally kaam kare, to LSP follow ho rahi hai.
+
+
+
 // I – Interface Segregation Principle (ISP)
 //  Definition:
 

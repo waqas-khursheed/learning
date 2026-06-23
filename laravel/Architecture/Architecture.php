@@ -98,3 +98,7 @@
 // Maintainability: Kya dusra developer samajh payega?
 // Reliability: Agar ek service fail ho jaye to system chalega?
 // Security: Kya isme koi vulnerability to nahi?
+
+
+
+//  load balancers or clusters 
