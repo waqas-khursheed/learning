@@ -552,3 +552,203 @@ $service = new UserService(new PostgreSQLDatabase());
 // Fewer bugs when you extend or refactor
 
 // Professional-level clean architecture (senior-level interviews love this)
+
+
+
+
+# Redis Setup & Laravel Integration Guide
+
+## 1. Redis Install Karna (Ubuntu / AWS EC2)
+
+```bash
+sudo apt update
+sudo apt install redis-server -y
+
+# Service enable aur start karna
+sudo systemctl enable redis-server
+sudo systemctl start redis-server
+
+# Status check karna
+sudo systemctl status redis-server
+
+# Test karna ke Redis chal raha hai
+redis-cli ping
+# Response: PONG
+```
+
+### Redis Config (Security)
+Config file: `/etc/redis/redis.conf`
+
+```bash
+sudo nano /etc/redis/redis.conf
+```
+
+Yeh settings change/check karein:
+
+```
+requirepass YourStrongPassword   # password lagana
+bind 127.0.0.1                   # sirf localhost se access (security)
+```
+
+Save karne ke baad restart karein:
+
+```bash
+sudo systemctl restart redis-server
+```
+
+---
+
+## 2. Laravel Project Mein Connect Karna
+
+```bash
+composer require predis/predis
+```
+
+`.env` file mein add karein:
+
+```env
+REDIS_CLIENT=predis
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=YourStrongPassword
+REDIS_PORT=6379
+
+CACHE_DRIVER=redis
+SESSION_DRIVER=redis
+QUEUE_CONNECTION=redis
+```
+
+Config cache clear karein:
+
+```bash
+php artisan config:clear
+php artisan cache:clear
+```
+
+---
+
+## 3. Laravel Code Examples
+
+### Caching
+```php
+// Data store karna (60 minute ke liye)
+Cache::put('key_name', 'value', 600);
+
+// Data nikalna
+$value = Cache::get('key_name');
+
+// Agar exist nahi to query chala kar cache karo
+$users = Cache::remember('all_users', 600, function () {
+    return DB::table('users')->get();
+});
+
+// Cache delete
+Cache::forget('key_name');
+```
+
+### Session (.env mein SESSION_DRIVER=redis set hone ke baad automatic kaam karega)
+
+### Queue Example
+```php
+// Job dispatch karna
+ProcessOrder::dispatch($order);
+```
+
+Queue worker chalana:
+```bash
+php artisan queue:work redis
+```
+
+---
+
+## 4. Redis CLI - Important Commands
+
+Redis CLI open karna:
+```bash
+redis-cli
+# Agar password set hai to:
+redis-cli -a YourStrongPassword
+```
+
+### General Commands
+```bash
+PING                     # Connection check
+SET key value            # Value store karna
+GET key                  # Value nikalna
+DEL key                  # Key delete karna
+EXISTS key                # Check karna key hai ya nahi
+EXPIRE key seconds        # Key ka expiry time set karna
+TTL key                   # Bacha hua time check karna
+KEYS *                    # Sari keys dekhna (production mein avoid karein)
+FLUSHALL                  # Sara data delete (DANGEROUS)
+FLUSHDB                   # Current DB ka data delete
+```
+
+### String Commands
+```bash
+SET name "Ali"
+GET name
+INCR counter               # value +1
+DECR counter                # value -1
+APPEND name "Khan"          # string add karna
+```
+
+### List Commands
+```bash
+LPUSH mylist "item1"        # list ke start mein add
+RPUSH mylist "item2"        # list ke end mein add
+LRANGE mylist 0 -1           # poori list dekhna
+LPOP mylist                  # start se remove
+```
+
+### Hash Commands (objects store karne ke liye)
+```bash
+HSET user:1 name "Ali" age "25"
+HGET user:1 name
+HGETALL user:1
+HDEL user:1 age
+```
+
+### Set Commands
+```bash
+SADD myset "value1"
+SMEMBERS myset
+SREM myset "value1"
+```
+
+### Server/Monitoring Commands
+```bash
+INFO                       # Server info
+DBSIZE                     # Total keys count
+MONITOR                    # Real-time commands dekhna
+CONFIG GET maxmemory       # Config check karna
+```
+
+---
+
+## 5. AWS ElastiCache (Managed Option - Recommended for Production)
+
+1. AWS Console → ElastiCache → Create Cluster
+2. Engine: Redis select karein
+3. Node type chunein (e.g. `cache.t3.micro` chote projects ke liye)
+4. VPC wahi select karein jis mein EC2/Laravel app hai
+5. Cluster create hone ke baad **endpoint** milega
+
+`.env` mein endpoint use karein:
+```env
+REDIS_HOST=your-cluster-endpoint.cache.amazonaws.com
+```
+
+ElastiCache mein AWS khud backups, failover aur maintenance handle karta hai.
+
+---
+
+## Quick Summary
+| Kaam | Command/Setting |
+|------|------------------|
+| Redis install | `sudo apt install redis-server` |
+| Service start | `sudo systemctl start redis-server` |
+| Test connection | `redis-cli ping` |
+| Laravel package | `composer require predis/predis` |
+| Cache driver | `CACHE_DRIVER=redis` |
+| Session driver | `SESSION_DRIVER=redis` |
+| Queue driver | `QUEUE_CONNECTION=redis` |
