@@ -168,6 +168,146 @@ class RazorPayPayment implements PaymentMethod {
 }
 
 
+// Step 1: Interface
+app/Contracts/PaymentMethod.php
+php<?php
+
+namespace App\Contracts;
+
+interface PaymentMethod {
+    public function pay(float $amount): string;
+}
+// Step 2: Concrete Classes
+app/Services/Payments/StripePayment.php
+php<?php
+
+namespace App\Services\Payments;
+
+use App\Contracts\PaymentMethod;
+
+class StripePayment implements PaymentMethod {
+    public function pay(float $amount): string {
+        // Real Stripe logic yahan aayegi
+        return "Paid $amount via Stripe";
+    }
+}
+app/Services/Payments/PayPalPayment.php
+php<?php
+
+namespace App\Services\Payments;
+
+use App\Contracts\PaymentMethod;
+
+class PayPalPayment implements PaymentMethod {
+    public function pay(float $amount): string {
+        return "Paid $amount via PayPal";
+    }
+}
+// app/Services/Payments/RazorPayPayment.php
+php<?php
+
+namespace App\Services\Payments;
+
+use App\Contracts\PaymentMethod;
+
+class RazorPayPayment implements PaymentMethod {
+    public function pay(float $amount): string {
+        return "Paid $amount via RazorPay";
+    }
+}
+// Step 3: Factory Class (Best Practice — logic yahan rakhein, ServiceProvider mein nahi)
+app/Factories/PaymentMethodFactory.php
+php<?php
+
+namespace App\Factories;
+
+use App\Contracts\PaymentMethod;
+use App\Services\Payments\StripePayment;
+use App\Services\Payments\PayPalPayment;
+use App\Services\Payments\RazorPayPayment;
+use InvalidArgumentException;
+
+class PaymentMethodFactory {
+    public static function make(string $type): PaymentMethod {
+        return match ($type) {
+            'stripe'   => new StripePayment(),
+            'paypal'   => new PayPalPayment(),
+            'razorpay' => new RazorPayPayment(),
+            default    => throw new InvalidArgumentException("Unsupported payment method: $type"),
+        };
+    }
+}
+// Step 4: Service Provider (Clean — bas Factory ko call kar raha hai)
+app/Providers/AppServiceProvider.php
+php<?php
+
+namespace App\Providers;
+
+use Illuminate\Support\ServiceProvider;
+use App\Contracts\PaymentMethod;
+use App\Factories\PaymentMethodFactory;
+
+class AppServiceProvider extends ServiceProvider {
+    public function register() {
+        $this->app->bind(PaymentMethod::class, function ($app) {
+            $type = request()->input('payment_type', 'stripe');
+
+            return PaymentMethodFactory::make($type);
+        });
+    }
+}
+// Step 5: Controller (Clean — kuch bhi decide nahi kar raha, bas use kar raha hai)
+app/Http/Controllers/PaymentController.php
+php<?php
+
+namespace App\Http\Controllers;
+
+use App\Contracts\PaymentMethod;
+use Illuminate\Http\Request;
+
+class PaymentController extends Controller {
+    public function __construct(
+        protected PaymentMethod $paymentMethod
+    ) {}
+
+    public function checkout(Request $request) {
+        $amount = $request->input('amount', 100);
+
+        $result = $this->paymentMethod->pay($amount);
+
+        return response()->json(['message' => $result]);
+    }
+}
+// Step 6: Route
+// routes/web.php
+// phpuse App\Http\Controllers\PaymentController;
+
+Route::post('/checkout', [PaymentController::class, 'checkout']);
+// Test karein
+bashcurl -X POST http://your-app.test/checkout \
+  -d "payment_type=paypal&amount=500"
+
+# Response: {"message": "Paid 500 via PayPal"}
+bashcurl -X POST http://your-app.test/checkout \
+  -d "payment_type=razorpay&amount=250"
+
+# Response: {"message": "Paid 250 via RazorPay"}
+// Ye approach best kyun hai?
+// FaidaWajahSingle ResponsibilityFactory sirf class banati hai, Controller sirf use karta hai, ServiceProvider sirf bind karta haiTestablePaymentMethodFactory::make('stripe') ko independently test kar sakte hainOpen/Closed PrincipleNaya gateway add karna ho to sirf Factory mein ek line add karni haiClean ControllerController ko pata hi nahi konsi class use ho rahi hai — sirf interface se kaam chalata haiReusableFactory ko kahin bhi (jobs, commands, events) use kar sakte hain, sirf HTTP request tak mehdood nahi
+Agar naya gateway (e.g. EasyPaisa) add karna ho:
+php// Bas ye 2 kaam karein:
+
+// 1. Nayi class banayein
+class EasyPaisaPayment implements PaymentMethod {
+    public function pay(float $amount): string {
+        return "Paid $amount via EasyPaisa";
+    }
+}
+
+// 2. Factory mein ek line add karein
+'easypaisa' => new EasyPaisaPayment(),
+// Baaki koi bhi code touch nahi karna — na Controller, na ServiceProvider. Yehi asal SOLID
+
 // Purana code untouched — system open for extension, closed for modification.
 
 
@@ -356,6 +496,251 @@ Agar:
 Parent $obj = new Child();
 
 // aur system normally kaam kare, to LSP follow ho rahi hai.
+
+
+Real Scenario: E-commerce Discount System
+Faraz karain aap ek e-commerce app bana rahe hain jisme different discount types hain: Percentage Discount, Fixed Amount Discount, aur Free Shipping.
+❌ Galat Tareeqa (LSP Violation)
+php<?php
+
+namespace App\Contracts;
+
+interface Discount {
+    public function apply(float $totalAmount): float;
+}
+php<?php
+
+namespace App\Services\Discounts;
+
+use App\Contracts\Discount;
+
+class PercentageDiscount implements Discount {
+    public function __construct(protected float $percentage) {}
+
+    public function apply(float $totalAmount): float {
+        return $totalAmount - ($totalAmount * $this->percentage / 100);
+    }
+}
+php<?php
+
+namespace App\Services\Discounts;
+
+use App\Contracts\Discount;
+
+class FixedAmountDiscount implements Discount {
+    public function __construct(protected float $amount) {}
+
+    public function apply(float $totalAmount): float {
+        return $totalAmount - $this->amount;
+    }
+}
+Ab yahan problem shuru hoti hai — Free Shipping Discount add karte waqt:
+php<?php
+
+namespace App\Services\Discounts;
+
+use App\Contracts\Discount;
+
+class FreeShippingDiscount implements Discount {
+    public function apply(float $totalAmount): float {
+        // ❌ Problem: Free shipping ka price se koi lena dena hi nahi!
+        // Ye "apply" method ka concept yahan fit hi nahi hota
+        throw new \Exception("Free shipping doesn't work on amount!");
+    }
+}
+Ye LSP Violation Kyun Hai?
+phpfunction applyDiscount(Discount $discount, float $total) {
+    return $discount->apply($total);
+}
+
+applyDiscount(new PercentageDiscount(10), 1000); // ✅ 900
+applyDiscount(new FixedAmountDiscount(100), 1000); // ✅ 900
+applyDiscount(new FreeShippingDiscount(), 1000); // ❌ CRASH — Exception aa jayega
+FreeShippingDiscount, Discount interface ki jagah safely use nahi ho sakti — kyunke uska nature hi alag hai (wo price discount nahi deti, shipping cost hataati hai). Ye LSP violation hai.
+// ✅ Sahi Tareeqa (LSP Follow Karte Hue)
+// Solution: Interface ko sahi tareeqe se design karein — jo cheez sab discounts mein common hai, wahi interface mein rakhein.
+php<?php
+
+namespace App\Contracts;
+
+interface Discount {
+    public function getDescription(): string;
+    public function calculateDiscount(float $totalAmount): float; // Kitna discount milega (amount)
+}
+php<?php
+
+namespace App\Services\Discounts;
+
+use App\Contracts\Discount;
+
+class PercentageDiscount implements Discount {
+    public function __construct(protected float $percentage) {}
+
+    public function getDescription(): string {
+        return "{$this->percentage}% Off";
+    }
+
+    public function calculateDiscount(float $totalAmount): float {
+        return $totalAmount * ($this->percentage / 100);
+    }
+}
+php<?php
+
+namespace App\Services\Discounts;
+
+use App\Contracts\Discount;
+
+class FixedAmountDiscount implements Discount {
+    public function __construct(protected float $amount) {}
+
+    public function getDescription(): string {
+        return "Flat Rs. {$this->amount} Off";
+    }
+
+    public function calculateDiscount(float $totalAmount): float {
+        // Agar discount amount se zyada hai to poora total hi discount ho jaye
+        return min($this->amount, $totalAmount);
+    }
+}
+// Ab FreeShipping ko alag interface do — kyunke uska nature different hai:
+php<?php
+
+namespace App\Contracts;
+
+interface ShippingDiscount {
+    public function getDescription(): string;
+    public function isShippingFree(): bool;
+}
+php<?php
+
+namespace App\Services\Discounts;
+
+use App\Contracts\ShippingDiscount;
+
+class FreeShippingDiscount implements ShippingDiscount {
+    public function getDescription(): string {
+        return "Free Shipping";
+    }
+
+    public function isShippingFree(): bool {
+        return true;
+    }
+}
+// Ab Use Karke Dekhein — Sab Safely Chalega
+phpfunction applyPriceDiscount(Discount $discount, float $total): float {
+    return $total - $discount->calculateDiscount($total);
+}
+
+applyPriceDiscount(new PercentageDiscount(10), 1000);   // ✅ 900
+applyPriceDiscount(new FixedAmountDiscount(200), 1000); // ✅ 800
+
+// FreeShipping alag jagah use hoga — koi crash nahi
+function applyShippingDiscount(ShippingDiscount $discount): bool {
+    return $discount->isShippingFree();
+}
+
+applyShippingDiscount(new FreeShippingDiscount()); // ✅ true
+// Ab dono interfaces apni jagah bilkul theek kaam kar rahe hain — koi exception, koi crash nahi. Yehi LSP ka sahi implementation hai.
+// Cart Mein Poora Real-World Use
+php<?php
+
+namespace App\Services;
+
+use App\Contracts\Discount;
+use App\Contracts\ShippingDiscount;
+
+class CartService {
+    protected float $subtotal = 1000;
+    protected float $shippingCost = 150;
+
+    public function checkout(?Discount $priceDiscount = null, ?ShippingDiscount $shippingDiscount = null): array {
+        $finalTotal = $this->subtotal;
+        $finalShipping = $this->shippingCost;
+
+        if ($priceDiscount) {
+            $finalTotal -= $priceDiscount->calculateDiscount($this->subtotal);
+        }
+
+        if ($shippingDiscount && $shippingDiscount->isShippingFree()) {
+            $finalShipping = 0;
+        }
+
+        return [
+            'subtotal' => $this->subtotal,
+            'discount_applied' => $priceDiscount?->getDescription() ?? 'None',
+            'final_total' => $finalTotal,
+            'shipping' => $finalShipping,
+        ];
+    }
+}
+// Controller mein:
+php<?php
+
+namespace App\Http\Controllers;
+
+use App\Services\CartService;
+use App\Services\Discounts\PercentageDiscount;
+use App\Services\Discounts\FreeShippingDiscount;
+
+class CheckoutController extends Controller {
+    public function checkout(CartService $cart) {
+        $result = $cart->checkout(
+            priceDiscount: new PercentageDiscount(15),
+            shippingDiscount: new FreeShippingDiscount()
+        );
+
+        return response()->json($result);
+    }
+}
+Output:
+json{
+    "subtotal": 1000,
+    "discount_applied": "15% Off",
+    "final_total": 850,
+    "shipping": 0
+}
+// Ek Aur Real Example: Notification System (Bohat Common Laravel Projects Mein)
+php<?php
+
+namespace App\Contracts;
+
+interface Notifiable {
+    public function send(string $to, string $message): bool;
+}
+phpclass EmailNotification implements Notifiable {
+    public function send(string $to, string $message): bool {
+        // Mail::to($to)->send(...);
+        return true;
+    }
+}
+
+class SmsNotification implements Notifiable {
+    public function send(string $to, string $message): bool {
+        // Twilio ya kisi SMS API se bhejo
+        return true;
+    }
+}
+// LSP Violation yahan kaise ho sakti hai:
+phpclass WhatsAppNotification implements Notifiable {
+    public function send(string $to, string $message): bool {
+        if (strlen($message) > 1000) {
+            throw new \Exception("WhatsApp doesn't support long messages!"); // ❌
+        }
+        return true;
+    }
+}
+// Agar WhatsAppNotification kabhi kabhi crash kar sakta hai jabke EmailNotification aur SmsNotification hamesha kaam karte hain, to ye halka LSP violation hai. Behtar tareeqa hoga message ko andar hi truncate/split kar dena, exception phenkne ki bajaye — taake behavior consistent rahe.
+phpclass WhatsAppNotification implements Notifiable {
+    public function send(string $to, string $message): bool {
+        $message = substr($message, 0, 1000); // Handle gracefully, crash nahi
+        // Send logic...
+        return true;
+    }
+}
+// Summary — Real Work Mein LSP Kaise Yaad Rakhein
+// Sawal Apne Aap Se PoochainAgar "Haan" To LSP ViolationKya meri child class kabhi Exception phenkti hai jo parent nahi phenkti?✅ ViolationKya meri child class ka koi method "empty" ya "do nothing" hai sirf interface follow karne ke liye?✅ ViolationKya main interface ko is liye tor raha hoon kyunke ek class "fit nahi ho rahi"?✅ Ye batata hai interface design mein masla hai
+// Ye Discount System wala example bilkul aapke PaymentMethod jaisa hi hai — bas ek level upar. Agar aap chahain to main aapko Payment System mein hi ek "Refund" feature add karke dikha sakta hoon jahan LSP ka role clearly nazar aaye — wo aur bhi practical hoga aapke liye.
+
 
 
 
