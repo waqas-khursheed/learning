@@ -279,3 +279,196 @@ $this->app->bind(EngineInterface::class, BMWEngine::class);
 // | Interface Binding     | Loose coupling achieve karna      |
 // | Singleton             | Same instance reuse karna         |
 // | Constructor Injection | Most common DI method             |
+
+
+
+// bind() — Har baar naya object banata hai
+// Jab bhi aap container se ye class maango, naya instance milega (fresh object har dafa).
+php// AppServiceProvider.php mein register() ke andar
+public function register()
+{
+    $this->app->bind(PaymentGateway::class, function ($app) {
+        return new StripePaymentGateway();
+    });
+}
+
+// Test karo:
+php$obj1 = app(PaymentGateway::class);
+$obj2 = app(PaymentGateway::class);
+
+var_dump($obj1 === $obj2); // false — dono alag alag objects hain
+
+
+// singleton() — Ek hi baar banega, phir wahi reuse hoga
+// Jab bhi aap container se ye class maango, hamesha wahi ek instance milega (same object).
+phppublic function register()
+{
+    $this->app->singleton(PaymentGateway::class, function ($app) {
+        return new StripePaymentGateway();
+    });
+}
+// Test karo:
+php$obj1 = app(PaymentGateway::class);
+$obj2 = app(PaymentGateway::class);
+
+var_dump($obj1 === $obj2); // true — dono same object hain
+// Kab use karna hai: Jab aapko database connection, config, ya cache jaisi cheezein chahiye ho jo poori request mein ek hi baar create ho aur sab jagah wahi use ho.
+
+
+
+// make() — Container se manually object nikalna
+// Ye method container ko keh raha hai "mujhe ye class resolve kar ke do".
+php// Kahin bhi controller/route mein
+$gateway = app()->make(PaymentGateway::class);
+
+// Ya shortcut helper function se
+$gateway = app(PaymentGateway::class);
+
+$gateway->processPayment(100);
+Real example — Controller mein:
+phpclass OrderController extends Controller
+{
+    public function store()
+    {
+        // Container se manually resolve kar rahe hain
+        $gateway = app()->make(PaymentGateway::class);
+        $gateway->processPayment(500);
+
+        return "Payment done!";
+    }
+}
+
+
+// resolve() — make() jaisa hi kaam, alag helper function
+// Laravel mein resolve() ek global helper function hai jo app()->make() ka shortcut hai.
+php$gateway = resolve(PaymentGateway::class);
+$gateway->processPayment(200);
+Ye bilkul waisa hi hai jaise:
+php$gateway = app()->make(PaymentGateway::class);
+
+
+
+// Full Example — Sab kuch ek saath
+php// Interface
+interface PaymentGateway
+{
+    public function processPayment($amount);
+}
+
+// Implementation
+class StripePaymentGateway implements PaymentGateway
+{
+    public function processPayment($amount)
+    {
+        return "Processing $amount via Stripe";
+    }
+}
+
+// Service Provider
+class AppServiceProvider extends ServiceProvider
+{
+    public function register()
+    {
+        // singleton use kiya — pura app mein ek hi instance chalega
+        $this->app->singleton(PaymentGateway::class, function ($app) {
+            return new StripePaymentGateway();
+        });
+    }
+}
+
+// Controller mein use karna
+class OrderController extends Controller
+{
+    public function store()
+    {
+        // Method 1: make()
+        $gateway1 = app()->make(PaymentGateway::class);
+
+        // Method 2: resolve()
+        $gateway2 = resolve(PaymentGateway::class);
+
+        // Method 3: Dependency Injection (best practice!)
+        // Constructor mein automatically inject ho jayega
+    }
+
+    // Best practice: Constructor Injection
+    public function __construct(PaymentGateway $gateway)
+    {
+        $this->gateway = $gateway; // Container khud resolve kar ke de dega
+    }
+}
+
+
+
+// Chaliye make() ke practical fayde dekhte hain — kab aur kyun use karna chahiye.
+// make() kyun use karte hain? (Real Benefits)
+// 1️⃣ Jab Constructor Injection possible na ho
+// Constructor Injection sirf classes (controllers, jobs, commands) mein automatic kaam karta hai. Lekin agar aap kisi normal function, helper, ya closure ke andar ho, to wahan Laravel khud-ba-khud inject nahi kar sakta — wahan make() kaam aata hai.
+php// Ek route closure ke andar
+
+Route::get('/test', function () {
+    $gateway = app()->make(PaymentGateway::class);
+    return $gateway->processPayment(100);
+});
+
+// 2️⃣ Runtime pe dynamically decide karna kya resolve karna hai
+// Agar aapko condition ke hisaab se alag alag class resolve karni ho, to make() bohat useful hai.
+
+phppublic function pay($method)
+{
+    if ($method === 'stripe') {
+        $gateway = app()->make(StripePaymentGateway::class);
+    } else {
+        $gateway = app()->make(PaypalPaymentGateway::class);
+    }
+
+    return $gateway->processPayment(500);
+}
+// Constructor Injection mein ye flexibility nahi milti — wahan class fixed hoti hai.
+
+// 3️⃣ Parameters ke saath object resolve karna
+// make() ka ek bohot bada faida ye hai ke aap extra parameters pass kar sakte ho jo container khud resolve nahi kar sakta (jaise strings, numbers).
+
+phpclass ReportGenerator
+{
+    public function __construct(protected string $title, protected Database $db)
+    {
+        // $db to container khud resolve kar lega
+        // lekin $title ek plain string hai, ye container ko pata nahi
+    }
+}
+
+// make() se hum manually string pass kar sakte hain
+
+$report = app()->make(ReportGenerator::class, [
+    'title' => 'Monthly Sales Report'
+]);
+
+// Ye Constructor Injection se possible nahi, kyunke Laravel controller mein khud call karta hai aur aap manually string pass nahi kar sakte.
+
+// 4️⃣ Testing aur Debugging mein easy hota hai
+// Jab aap manually test kar rahe ho (tinker ya kisi script mein), to make() seedha object nikaal deta hai bina poori class banaye.
+php// php artisan tinker ke andar
+
+$gateway = app()->make(PaymentGateway::class);
+$gateway->processPayment(100);
+
+// 5️⃣ Lazy Loading — Object sirf tab bane jab zaroorat ho
+// Agar aap object ko conditionally use karna chahte ho (har waqt nahi), to make() se aap sirf us waqt resolve karte ho jab actually zaroorat ho — performance behtar hoti hai.
+
+phppublic function handle()
+{
+    if ($this->needsPayment) {
+        // Sirf tab object banega jab condition true ho
+        $gateway = app()->make(PaymentGateway::class);
+        $gateway->processPayment(100);
+    }
+}
+
+// Agar aap Constructor Injection use karte, to object hamesha ban jata — chahe use ho ya na ho.
+
+
+// Constructor Injection = Best Practice (default choice)
+// make() = Special cases ke liye (jab constructor injection possible ya practical na ho)
+// Agar aap normal controller/class likh rahe ho, to hamesha Constructor Injection use karo — clean aur testable code milta hai. 
+// make() sirf tab use karo jab genuinely zaroorat ho (jaise upar ke scenarios).
